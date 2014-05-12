@@ -3,5 +3,5 @@
 
 Runs things, tests them.   Remote execute management.
 
-Documents to come onece the code has stabilized.
+Documents to come once the code has stabilized.
 
