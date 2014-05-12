@@ -1,0 +1,33 @@
+# Job this is based on (described by job.yaml).  Job Instance is a specific instance of a Job.
+job: null
+
+# Job ID, is our record for a specific job being launched
+job id: null
+
+# Timestamp: When job was requested to be completed
+job requested: null
+# Timestamp: When job began execution on target node
+job started: null
+# Timestamp: When job finished execution on target node
+job finished: null
+# Timestamp: When job last reported its status
+job last reported: null
+
+# If successfully run, then true
+success: null
+
+# Target host name to run on
+target host: null
+
+# List of Job IDs which must be completed successfully before this job can begin
+job dependencies: []
+
+# A time to begin starting
+start at: null
+
+# Email addresses to notify, on success
+notify on success: []
+
+# Email addresses to notify, on failure
+notify on failure: []
+

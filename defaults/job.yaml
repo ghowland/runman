@@ -1,0 +1,86 @@
+# Name of the job
+name: Job Name
+
+# Component the job is running against (text based)
+component: Job Component
+
+# Email addresses to always notify.  Not specifically for a job instance, but every job instance.
+always notify on success: []
+always notify on failure: []
+
+
+# Job Run definition
+run:
+  # Platform specified (ex: linux_redhat, linux_debian, solaris)
+  platform:
+    # List of Commands: 1st command to execute
+    - execute: "command arg1 arg2 arg3"
+      # Whether this command can be run without making any changes to the system.
+      #NOTE(g): Better to leave false than true if you arent sure.
+      idempotent: false
+      
+      # Input data, which will be python string formatted into the "execute" value
+      input:
+        # Input key name
+        key:
+          # Input value type, example: text, int, decimal
+          type: text
+          # Type value minimum (numeric)
+          min: null
+          # Type value maximum (numeric)
+          max: null
+          # Minimum size (text length)
+          min size: null
+          # Maximum size (text length)
+          max size: null
+      
+      # Result Data
+      #   exit_code - int
+      #   started - timestamp
+      #   finished - timestamp
+      #   duration - decimal (seconds)
+      
+      # Process the results: stdout, stderr, file contents, etc.  Performed after execution begins
+      process:
+        # List of Processing instructions: What to process (ex: stdout, stderr, file)
+        - what: stderr
+          # If what==file, this specifies the path
+          path: null
+          # When to process: finished, during
+          when: finished
+          # If when==during, this is period in seconds to re-process the stdout/stderr/files/etc
+          during period: 10.0
+          # If specified, this pyformat regex is performed against the "what" specified data
+          #   Example: "[%(date)s] %(component)s - %(pid)s - %(message)s", this would extract a date, component, pid and message
+          #     key values to be set into the result dictionary, which is tested by the success portion of the process
+          pyformat match: null
+          # If append==true, then any results found in the math will be appended as a dictionary to the result data,
+          #   if append==false, then any keys will be set directly into the result data dict
+          append: false
+          
+      
+      # List of tests for success factors: Tested in sequence.
+      tests:
+        # List of success tests.  Key is the result data dict key to use as the test input
+        - key: exit_code
+          # Function to process key vs. value.  Examples: in, equals, notequals, notin, >, <, <=, >=
+          function: in
+          # Value for function
+          value: [0,]
+          # Log message if this test succeeded, using result data dict as python string formatting
+          log success: "Exit code successful: %(exit_code)s"
+          # Log message if this test failed, using result data dict as python string formatting
+          log failure: "Exit code failed: %(exit_code)s"
+          # If critical==true, then success testing is stopped as soon as this is found.
+          #   If critical==false, then the success testing continues, but the job will still fail with any errors
+          critical: false
+          # Produces a warning, not critical but something to take note of
+          warning: false
+        
+        # Runs slowly: over 30 seconds
+        - key: duration
+          function: >
+          value: 30.0
+          log failure: "Took too longer than 30 seconds: %(duration)s"
+          warning: true
+

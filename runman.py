@@ -13,6 +13,10 @@ import getopt
 import yaml
 
 
+import utility
+from utility.log import log
+
+
 def Usage(error=None):
   """Print usage information, any errors, and exit.
 
@@ -60,6 +64,7 @@ def Main(args=None):
   
   # Dictionary of command options, with defaults
   command_options = {}
+  command_options['platform'] = utlitity.platform.GetPlatform()
   command_options['commit'] = False
   command_options['bootstrap'] = False
   command_options['hostgroup_path'] = DEFAULT_HOST_GROUP_PATH
@@ -164,4 +169,4 @@ if __name__ == '__main__':
   #   fix the utility/handlers module import problem yourself.
   sys.path.append(os.path.dirname(sys.argv[0]))
 
-	Main(sys.argv[1:])
+  Main(sys.argv[1:])
