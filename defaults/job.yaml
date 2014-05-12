@@ -19,6 +19,12 @@ run:
       #NOTE(g): Better to leave false than true if you arent sure.
       idempotent: false
       
+      # Acquire locks.  All locks must be acquired before the job can start.  Any timeouts will abort the job running.
+      acquire locks:
+        - key: "%(component)s: backups"
+          # Seconds for timeout if it cannot acquire a lock
+          lock timeout: null
+      
       # Input data, which will be python string formatted into the "execute" value
       input:
         # Input key name
@@ -33,12 +39,21 @@ run:
           min size: null
           # Maximum size (text length)
           max size: null
+          # If set, this acts as a regex against the text (converted if not text) value, to determine it is valid data
+          regex validate: null
       
-      # Result Data
+      # Default input data:
+      #   job_id
+      #   job_instance_id
+      #   component
+      #   hostname (machine running the job)
+      
+      # Result Data keys:
       #   exit_code - int
       #   started - timestamp
       #   finished - timestamp
       #   duration - decimal (seconds)
+      #   latest_duration - decimal (seconds), this is updated periodically during a job, and gives us variable data
       
       # Process the results: stdout, stderr, file contents, etc.  Performed after execution begins
       process:
@@ -57,12 +72,17 @@ run:
           # If append==true, then any results found in the math will be appended as a dictionary to the result data,
           #   if append==false, then any keys will be set directly into the result data dict
           append: false
+          # If set, this is what gets logged when this is processed.  If when==finished, this will only appear once, and in
+          #   sequence of the process items.  If when==during, this will appear each time it runs, also in sequence with other
+          #   processing items that are "when==during".  Using Python formatting with input dict overlaid with result dict.
+          log: null
           
       
       # List of tests for success factors: Tested in sequence.
       tests:
         # List of success tests.  Key is the result data dict key to use as the test input
-        - key: exit_code
+        - when: finished
+          key: exit_code
           # Function to process key vs. value.  Examples: in, equals, notequals, notin, >, <, <=, >=
           function: in
           # Value for function
@@ -78,7 +98,17 @@ run:
           warning: false
         
         # Runs slowly: over 30 seconds
-        - key: duration
+        - when: finished
+          key: duration
+          function: >
+          value: 30.0
+          log failure: "Took too longer than 30 seconds: %(duration)s"
+          warning: true
+        
+        # Runs slowly: over 30 seconds -- Currently
+        - when: during
+          during period: 10.0
+          key: current_duration
           function: >
           value: 30.0
           log failure: "Took too longer than 30 seconds: %(duration)s"
