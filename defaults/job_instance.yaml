@@ -31,3 +31,5 @@ notify on success: []
 # Email addresses to notify, on failure
 notify on failure: []
 
+# Data (Job Input)
+data: {}

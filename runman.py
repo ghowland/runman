@@ -11,10 +11,85 @@ import sys
 import os
 import getopt
 import yaml
+import json
+import pprint
 
 
 import utility
 from utility.log import log
+
+
+# Output formats we support
+OUTPUT_FORMATS = ['json', 'yaml', 'pprint']
+
+# Commands we support
+COMMANDS = {
+  'print':'Print out job spec',
+  'list':'List all jobs in runman spec',
+  'run':'Run a job from the runman spec',
+  'info':'Information about this environment'
+}
+
+
+def ProcessCommand(runspec, command, command_options, command_args):
+  """Process a command against this runspec_path"""
+  output_data = {}
+  
+  # Info: Information about this environment
+  if command == 'info':
+    output_data['options'] = command_options
+
+  # Print: Print out job spec
+  elif command == 'print':
+    output_data['errors'] = []
+    
+    # Runspec
+    output_data['runspec'] = runspec
+    
+    # Websource: If we have the websource (HTTP based datasource), load its data
+    if 'websource' in runspec:
+      try:
+        output_data['websource'] = yaml.load(open(runspec['websource']))
+        
+      except Exception, e:
+        output_data['errors'].append('Could not load runspec\'s websource: %s: %s' % (runspec['websource'], e))
+    
+    # Websource: missing
+    else:
+      output_data['errors'].append('No websource block specified in the runspec')
+    
+    # Jobs
+    output_data['jobs'] = {}
+    for (job, job_path) in runspec['jobs'].items():
+      if os.path.isfile:
+        try:
+          output_data['jobs'][job] = yaml.load(open(job_path))
+          
+        except Exception, e:
+          output_data['errors'].append('Job spec could not be loaded: %s: %s: %s' % (job, job_path, e))
+          
+      else:
+        output_data['errors'].append('Job spec file not found: %s' % job_path)
+  
+  return output_data
+
+
+def FormatAndOuput(result, command_options):
+  """Format the output and return it"""
+  # PPrint
+  if command_options['format'] == 'pprint':
+    pprint.pprint(result)
+  
+  # YAML
+  elif command_options['format'] == 'yaml':
+    print yaml.dump(result)
+  
+  # JSON
+  elif command_options['format'] == 'json':
+    print json.dumps(result)
+  
+  else:
+    raise Exception('Unknown output format "%s", result as text: %s' % (command_options['format'], result))
 
 
 def Usage(error=None):
@@ -29,20 +104,22 @@ def Usage(error=None):
     exit_code = 0
   
   print
-  print 'usage: %s [options] <spec_file_1> [spec_file_2] [spec_file_3] ...' % os.path.basename(sys.argv[0])
+  print 'usage: %s [options] <runman_spec.yaml> <command> [job_key]' % os.path.basename(sys.argv[0])
+  print
+  print 'example usage: "python %s ./runman_specs/*.yaml run somejob"' % os.path.basename(sys.argv[0])
   print
   print
   print 'Options:'
   print
   print '  -h, -?, --help          This usage information'
-  print '  -C, --commit            Commit changes.  No changes will be made, unless set.'
-  print '      --hostgroups[=path] Path to host groups (directory)'
-  print '      --deploy[=path]     Path to deployment files (directory)'
-  print '      --packages[=path]   Path to package files (directory)'
-  print '      --handlers[=path]   Path to handler default yaml data (directory)'
-  print '      --buildas[=group]   Manually specify Host Group, cannot be in one already'
+  print '  -f, --format            Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
   print
   print '  -v, --verbose           Verbose output'
+  print
+  print 'Commands:'
+  print
+  for (command, info) in COMMANDS.items():
+    print '  %-23s %s' % (command, info)
   print
   
   sys.exit(exit_code)
@@ -52,28 +129,17 @@ def Main(args=None):
   if not args:
     args = []
 
-  
-  long_options = ['help', 'output=', 'format=', 'verbose', 'hostgroups=', 
-      'deploy=', 'packages=', 'bootstrap', 'commit', 'handlers=',
-      'buildas=']
+  long_options = ['help', 'format=', 'verbose', ]
   
   try:
-    (options, args) = getopt.getopt(args, '?hvo:f:bC', long_options)
+    (options, args) = getopt.getopt(args, '?hvf:', long_options)
   except getopt.GetoptError, e:
     Usage(e)
   
   # Dictionary of command options, with defaults
   command_options = {}
-  command_options['platform'] = utlitity.platform.GetPlatform()
-  command_options['commit'] = False
-  command_options['bootstrap'] = False
-  command_options['hostgroup_path'] = DEFAULT_HOST_GROUP_PATH
-  command_options['deploy_path'] = DEFAULT_DEPLOY_PATH
-  command_options['deploy_temp_path'] = DEFAULT_DEPLOY_TEMP_PATH
-  command_options['package_path'] = DEFAULT_PACKAGE_PATH
-  command_options['handler_data_path'] = DEFAULT_HANDLER_DEFAULT_PATH
+  command_options['platform'] = utility.platform.GetPlatform()
   command_options['verbose'] = False
-  command_options['build_as'] = None
   command_options['format'] = 'pprint'
   
   
@@ -87,38 +153,12 @@ def Main(args=None):
     elif option in ('-v', '--verbose'):
       command_options['verbose'] = True
     
-    # Commit changes for Install or Package
-    #NOTE(g): If not set (False), no installation will be done, no packages
-    #   will be created.  This will be a dry-run to test what would be 
-    #   performed if commit=True
-    elif option in ('-C', '--commit'):
-      command_options['commit'] = True
-    
-    # Bootstrap this host?  Install "bootstrap packages" before "packages"
-    elif option in ('-b', '--bootstrap'):
-      command_options['bootstrap'] = True
-    
-    # Host Groups Path
-    elif option in ('--hostgroups'):
-      if os.path.isdir(value):
-        command_options['hostgroup_path'] = value
-      else:
-        Error('Host Groups path specified is not a directory: %s' % value)
-    
-    # Deployment Path
-    elif option in ('--deploy'):
-      if os.path.isdir(value):
-        command_options['deploy_path'] = value
-      else:
-        Error('Deployment path specified is not a directory: %s' % value)
-    
-    # Package Path
-    elif option in ('--packages'):
-      if os.path.isdir(value):
-        command_options['package_path'] = value
-      else:
-        Error('Package path specified is not a directory: %s' % value)
-    
+    # Format output
+    elif option in ('-f', '--format'):
+      if value not in (OUTPUT_FORMATS):
+        Usage('Unsupported output format "%s", supported formats: %s' % (value, ', '.join(OUTPUT_FORMATS)))
+      
+      command_options['format'] = value
     
     # Invalid option
     else:
@@ -131,23 +171,40 @@ def Main(args=None):
   
   # Ensure we at least have a command, it's required
   if len(args) < 1:
-    Usage('No command sepcified')
+    Usage('No run spec specified')
   
   # Get the command
-  command = args[0]
+  runspec_path = args[0]
+  
+  if not os.path.isfile(runspec_path):
+    Usage('Run spec file does not exist: %s' % runspec_path)
+  
+  try:
+    runspec = yaml.load(open(runspec_path))
+  
+  except Exception, e:
+    Usage('Failed to load runspec: %s: %s' % (runspec_path, e))
+    
+  
+  # Ensure we at least have a command, it's required
+  if len(args) < 2:
+    Usage('No command specified')
+  
+  # Get the command
+  command = args[1]
   
   # If this is an unknown command, say so
   if command not in COMMANDS:
     Usage('Command "%s" unknown.  Commands: %s' % (command, ', '.join(COMMANDS)))
   
   # If there are any command args, get them
-  command_args = args[1:]
+  command_args = args[2:]
   
   # Process the command
   if 1:
   #try:
     # Process the command and retrieve a result
-    result = ProcessCommand(command, command_options, command_args)
+    result = ProcessCommand(runspec, command, command_options, command_args)
     
     # Format and output the result (pprint/json/yaml to stdout/file)
     FormatAndOuput(result, command_options)
@@ -158,11 +215,8 @@ def Main(args=None):
   #   debugging information
   #except Exception, e:
   else:
-    Error({'exception':str(e)}, command_options)
+    utility.error.Error({'exception':str(e)}, command_options)
 
-
-
-  (options, args) = getopt.getopt(args, )
 
 if __name__ == '__main__':
   #NOTE(g): Fixing the path here.  If you're calling this as a module, you have to 
