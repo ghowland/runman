@@ -71,6 +71,15 @@ def ProcessCommand(runspec, command, command_options, command_args):
       else:
         output_data['errors'].append('Job spec file not found: %s' % job_path)
   
+  # Run a job
+  elif command == 'run':
+    utility.run.Run(runspec, command_options, command_args)
+  
+  # Unknown command
+  else:
+    output_data['errors'] = ['Unknown command: %s' % command]
+    
+  
   return output_data
 
 
