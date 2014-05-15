@@ -9,10 +9,20 @@ import sys
 # Run options, may specify logging level or log output targets, etc
 RUN_OPTIONS = {}
 
+# Store all of our logged lines in memory
+LOGGED = []
+
 
 def log(text, options=RUN_OPTIONS):
   """Send log messages to STDERR, so we can template to STDOUT by default (no output path, easier testing)"""
-  timestamp = '[%d-%02d-%02d %02d:%02d:%02d] ' % time.localtime()[:6]
+  global LOGGED
+  
+  local_time = time.localtime()
+  timestamp = '[%d-%02d-%02d %02d:%02d:%02d] ' % local_time[:6]
+  
+  # Save the log text to our global storage variable
+  LOGGED.append((local_time, text))
+  
   sys.stderr.write(timestamp + str(text) + '\n')
   sys.stderr.flush()
 

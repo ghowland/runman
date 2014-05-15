@@ -31,8 +31,8 @@ COMMANDS = {
 }
 
 
-def ProcessCommand(runspec, command, command_options, command_args):
-  """Process a command against this runspec_path"""
+def ProcessCommand(run_spec, command, command_options, command_args):
+  """Process a command against this run_spec_path"""
   output_data = {}
   
   # Info: Information about this environment
@@ -44,23 +44,23 @@ def ProcessCommand(runspec, command, command_options, command_args):
     output_data['errors'] = []
     
     # Runspec
-    output_data['runspec'] = runspec
+    output_data['run_spec'] = run_spec
     
     # Websource: If we have the websource (HTTP based datasource), load its data
-    if 'websource' in runspec:
+    if 'websource' in run_spec:
       try:
-        output_data['websource'] = yaml.load(open(runspec['websource']))
+        output_data['websource'] = yaml.load(open(run_spec['websource']))
         
       except Exception, e:
-        output_data['errors'].append('Could not load runspec\'s websource: %s: %s' % (runspec['websource'], e))
+        output_data['errors'].append('Could not load run_spec\'s websource: %s: %s' % (run_spec['websource'], e))
     
     # Websource: missing
     else:
-      output_data['errors'].append('No websource block specified in the runspec')
+      output_data['errors'].append('No websource block specified in the run_spec')
     
     # Jobs
     output_data['jobs'] = {}
-    for (job, job_path) in runspec['jobs'].items():
+    for (job, job_path) in run_spec['jobs'].items():
       if os.path.isfile:
         try:
           output_data['jobs'][job] = yaml.load(open(job_path))
@@ -73,7 +73,7 @@ def ProcessCommand(runspec, command, command_options, command_args):
   
   # Run a job
   elif command == 'run':
-    utility.run.Run(runspec, command_options, command_args)
+    utility.run.Run(run_spec, command_options, command_args)
   
   # Unknown command
   else:
@@ -121,9 +121,11 @@ def Usage(error=None):
   print 'Options:'
   print
   print '  -h, -?, --help          This usage information'
-  print '  -f, --format            Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
-  print
   print '  -v, --verbose           Verbose output'
+  print '  -s, --strict            Strict mode: fail if input fields not specified for collection are missing'
+  print '  -f, --format <format>   Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
+  print '  -n, --noninteractive    Do not use STDIN to prompt for missing input fields'
+  print '  -i, --input <path>      Path to input file (Format specified by suffic: (.yaml, .json)'
   print
   print 'Commands:'
   print
@@ -138,10 +140,10 @@ def Main(args=None):
   if not args:
     args = []
 
-  long_options = ['help', 'format=', 'verbose', ]
+  long_options = ['help', 'format=', 'verbose', 'strict', 'noninteractive', 'input=']
   
   try:
-    (options, args) = getopt.getopt(args, '?hvf:', long_options)
+    (options, args) = getopt.getopt(args, '?hvnsi:f:', long_options)
   except getopt.GetoptError, e:
     Usage(e)
   
@@ -150,6 +152,9 @@ def Main(args=None):
   command_options['platform'] = utility.platform.GetPlatform()
   command_options['verbose'] = False
   command_options['format'] = 'pprint'
+  command_options['noninteractive'] = False
+  command_options['input_path'] = None
+  command_options['strict'] = False
   
   
   # Process out CLI options
@@ -161,6 +166,18 @@ def Main(args=None):
     # Verbose output information
     elif option in ('-v', '--verbose'):
       command_options['verbose'] = True
+    
+    # Noninteractive.  Doesnt use STDIN to gather any missing data.
+    elif option in ('-n', '--noninteractive'):
+      command_options['noninteractive'] = True
+    
+    # Strict mode. fail if input fields not specified for collection are missing.
+    elif option in ('-s', '--strict'):
+      command_options['strict'] = True
+    
+    # Noninteractive.  Doesnt use STDIN to gather any missing data.
+    elif option in ('-i', '--input'):
+      command_options['input_path'] = value
     
     # Format output
     elif option in ('-f', '--format'):
@@ -183,16 +200,16 @@ def Main(args=None):
     Usage('No run spec specified')
   
   # Get the command
-  runspec_path = args[0]
+  run_spec_path = args[0]
   
-  if not os.path.isfile(runspec_path):
-    Usage('Run spec file does not exist: %s' % runspec_path)
+  if not os.path.isfile(run_spec_path):
+    Usage('Run spec file does not exist: %s' % run_spec_path)
   
   try:
-    runspec = yaml.load(open(runspec_path))
+    run_spec = yaml.load(open(run_spec_path))
   
   except Exception, e:
-    Usage('Failed to load runspec: %s: %s' % (runspec_path, e))
+    Usage('Failed to load run_spec: %s: %s' % (run_spec_path, e))
     
   
   # Ensure we at least have a command, it's required
@@ -213,7 +230,7 @@ def Main(args=None):
   if 1:
   #try:
     # Process the command and retrieve a result
-    result = ProcessCommand(runspec, command, command_options, command_args)
+    result = ProcessCommand(run_spec, command, command_options, command_args)
     
     # Format and output the result (pprint/json/yaml to stdout/file)
     FormatAndOuput(result, command_options)

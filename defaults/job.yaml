@@ -20,20 +20,6 @@ authorization:
   execute: []
 
 
-# Collect data for this job.  Input to be used by run items
-collect:
-  - label: Machine
-    type: lookup
-    datasource: opsdb
-    table: machine
-    order by: name
-    info: Specify the machine to perform this job on.
-    
-    set:
-      machine_id: "%(id)s"
-      hostname: "%(name)s"
-
-
 # Input data, which will be python string formatted into the "execute" value
 input:
   # Input key name
@@ -44,10 +30,10 @@ input:
     min: null
     # Type value maximum (numeric)
     max: null
-    # Minimum size (text length)
-    min size: null
-    # Maximum size (text length)
-    max size: null
+    # Minimum length (text)
+    min length: null
+    # Maximum length (text)
+    max length: null
     # If set, this acts as a regex against the text (converted if not text) value, to determine it is valid data
     regex validate: null
   
@@ -64,6 +50,20 @@ input:
     type: int
   hostname:
     type: text
+
+
+# Collect data for this job.  Input to be used by run items
+collect:
+  - label: Machine
+    type: lookup
+    datasource: opsdb
+    table: machine
+    order by: name
+    info: Specify the machine to perform this job on.
+    
+    set:
+      machine_id: "%(id)s"
+      hostname: "%(name)s"
 
 
 # Job Run definition
