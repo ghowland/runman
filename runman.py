@@ -149,6 +149,7 @@ def Main(args=None):
   
   # Dictionary of command options, with defaults
   command_options = {}
+  command_options['remote'] = False   # Remote invocation.  When quitting or Error(), report back remotely with details.
   command_options['platform'] = utility.platform.GetPlatform()
   command_options['verbose'] = False
   command_options['format'] = 'pprint'

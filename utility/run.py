@@ -8,6 +8,8 @@ import json
 import decimal
 import re
 import sys
+import time
+import commands
 
 from log import log
 from error import Error
@@ -41,6 +43,12 @@ def Run(run_spec, command_options, command_args):
     Error('Failed to load job spec: %s: %s' % (job_spec_path, e), command_options)
   
   
+  
+  # Fail if the platform is not in this job spec
+  if command_options['platform'] not in job_spec['run']:
+    Error('This platform is not supported by this job, no run commands available: %s' % command_options['platform'], command_options)
+  
+  
   # Initiate run procedures
   input_data = RetrieveInputData(run_spec, job_spec, job_spec_path, command_options, command_args)
   
@@ -49,8 +57,59 @@ def Run(run_spec, command_options, command_args):
   # Run it...
   log('Running job: %s' % job_spec['data']['name'])
   
-  pass
+  
+  # Get the run items for our current platform
+  result_data = {'started':time.time(), 'run_results':[], 'success':None}
+  platform_run_items = job_spec['run'][command_options['platform']]
+  
+  # Run each platform run item
+  for run_item in platform_run_items:
+    run_result = RunItem(run_spec, job_spec, job_spec_path, run_item, input_data, command_options, command_args)
+    
+    # Test this data.  If this fails we will abort and exit the program, not continuing on below.
+    run_test_results = TestRunResult(run_spec, job_spec, job_spec_path, run_item, input_data, run_result, result_data, command_options, command_args)
+    run_result['test_results'] = run_test_results
+    
+    # Test overall success of this run item
+    run_result['success'] = True
+    for test_result in run_test_results:
+      if not test_result['success']:
+        run_result['success'] = False
+        break
+    
+    # Track all the run results for our overall job
+    result_data['run_results'].append(run_result)
+    
+    # Stop running any more run items if we failed the last one.  We need all of them to be successful to keep going.
+    if run_result['success'] == False:
+      log('Failed run test, aborting any more run items...')
+      break
+  
+  # Wrap everything up
+  result_data['finished'] = time.time()
+  result_data['duraction'] = result_data['finished'] - result_data['started']
+  
+  # If every one of our run results was a success, then we are successful
+  all_success = True
+  for run_result in result_data['run_results']:
+    if not run_result['success']:
+      all_success = False
+      break
+  
+  # If we were not always successful, then we are not successful
+  if not all_success:
+    result_data['success'] = False
+  else:
+    result_data['success'] = True
+  
+  log('Run Result Data: %s' % result_data)
+  
+  # Report the results
   #ReportResult()...
+  pass
+  
+  # Return result data
+  return result_data
 
 
 
@@ -94,6 +153,7 @@ def RetrieveInputData(runspec, job_spec, job_spec_path, command_options, command
       Error('Unknown input file data type (suffic unknown, acceptable: .yaml, .json): %s' % command_options['input_path'], command_options)
 
   
+  # Collect and validate input fields
   validated_input = {}
   missing_input = []
   
@@ -267,4 +327,94 @@ def CollectInput(job_spec, job_spec_path, missing_input, command_options):
   
   return collected_data
 
+
+def RunItem(run_spec, job_spec, job_spec_path, run_item, input_data, command_options, command_args):
+  """Run a job platform run item."""
+  log('Run Item: %s' % run_item)
+  
+  # Start
+  result = {'started':time.time()}
+  
+  # Execute
+  command = run_item['execute']
+  
+  # If we have python string formatting to do with our data, do it
+  if re.findall('%\(.*?\)s', command):
+    command = command % input_data
+  
+  log('Run Command: %s' % command)
+  result['command'] = command
+  
+  #TODO(g): Get a distinct data stream for STDOUT and STDERR, also need to poll these so I can report on long running jobs.
+  #   This just gets us working.
+  (status, output) = commands.getstatusoutput(command)
+  
+  # Finish
+  result['finished'] = time.time()
+  result['duration'] = result['finished'] - result['started']
+  result['exit_code'] = status
+  
+  #TODO(g): Separate STDOUT and STDERR, so we can operate on them differently.  For now, just make them the same to get things going...
+  result['stdout'] = output
+  result['stderr'] = output
+  
+  return result
+
+
+def TestRunResult(run_spec, job_spec, job_spec_path, run_item, input_data, run_result, result_data, command_options, command_args):
+  """Test the run_result for the run_item.  Abort, report and exit if we fail any of the tests."""
+  log('Test Run Result: %s' % run_result)
+  
+  # List of dicts, with test result information (critical, warning, success)
+  test_results = []
+  
+  for test_case in run_item['tests']:
+    # Skip test case if this when doesnt match
+    if 'finished' in run_result and test_case['when'] != 'finished':
+      continue
+    elif 'finished' not in run_result and test_case['when'] != 'during':
+      continue
+
+    # Ensure we have the test case field key we want to test, or fail
+    if test_case['key'] not in run_result:
+      Error('Missing test case key in run result: %s: %s' % (test_case['key'], run_result), command_options)
+    
+    # Get the value we are to operation on
+    value = run_result[test_case['key']]
+    
+    # Create our test_result dict, and just append it to our list of test results now
+    test_result = {}
+    test_results.append(test_result)
+    
+    # Test with specified function
+    if test_case['function'] in ['==', 'equals']:
+      # If pass
+      if value == test_case['value']:
+        test_result['success'] = True
+      
+      # If fail
+      else:
+        test_result['success'] = False
+    
+    
+    # If we had a failure
+    if not test_result['success']:
+      if test_result.get('log failure', None):
+        log('Result Test Failure: %s' % test_result['log failure'])
+      
+      if test_case['critical']:
+        test_result['critical'] = True
+        break
+      
+      if test_case['warning']:
+        test_result['warning'] = True
+    
+    # Else, we had a success
+    else:
+      if test_result.get('log success', None):
+        log('Result Test Failure: %s' % test_result['log failure'])
+      
+  
+  return test_results
+  
 

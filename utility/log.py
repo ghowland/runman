@@ -17,11 +17,12 @@ def log(text, options=RUN_OPTIONS):
   """Send log messages to STDERR, so we can template to STDOUT by default (no output path, easier testing)"""
   global LOGGED
   
-  local_time = time.localtime()
+  current_time = time.time()
+  local_time = time.localtime(current_time)
   timestamp = '[%d-%02d-%02d %02d:%02d:%02d] ' % local_time[:6]
   
   # Save the log text to our global storage variable
-  LOGGED.append((local_time, text))
+  LOGGED.append((current_time, text))
   
   sys.stderr.write(timestamp + str(text) + '\n')
   sys.stderr.flush()

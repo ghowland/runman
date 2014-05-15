@@ -115,7 +115,7 @@ run:
           #   Example: "[%(date)s] %(component)s - %(pid)s - %(message)s", this would extract a date, component, pid and message
           #     key values to be set into the result dictionary, which is tested by the success portion of the process
           pyformat match: null
-          # If append==true, then any results found in the math will be appended as a dictionary to the result data,
+          # If append==true, then any results found in the match will be appended as a dictionary to the result data,
           #   if append==false, then any keys will be set directly into the result data dict
           append: false
           # If set, this is what gets logged when this is processed.  If when==finished, this will only appear once, and in
