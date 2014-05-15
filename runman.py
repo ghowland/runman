@@ -39,6 +39,27 @@ def ProcessCommand(run_spec, command, command_options, command_args):
   if command == 'info':
     output_data['options'] = command_options
 
+  # List: List the jobs to run in this environment
+  elif command == 'list':
+    output_data['errors'] = []
+    
+    # Jobs
+    #output_data['jobs'] = {}
+    for (job, job_path) in run_spec['jobs'].items():
+      if os.path.isfile:
+        try:
+          job_data = yaml.load(open(job_path))
+          #output_data['jobs'][job] = {}
+          #output_data['jobs'][job]['data'] = job_data['data']
+          
+          print 'Job: %s: %s: %s' % (job, job_data['data']['component'], job_data['data']['name'])
+          
+        except Exception, e:
+          output_data['errors'].append('Job spec could not be loaded: %s: %s: %s' % (job, job_path, e))
+          
+      else:
+        output_data['errors'].append('Job spec file not found: %s' % job_path)
+
   # Print: Print out job spec
   elif command == 'print':
     output_data['errors'] = []
@@ -61,6 +82,7 @@ def ProcessCommand(run_spec, command, command_options, command_args):
     # Jobs
     output_data['jobs'] = {}
     for (job, job_path) in run_spec['jobs'].items():
+      log('Job: %s' % job)
       if os.path.isfile:
         try:
           output_data['jobs'][job] = yaml.load(open(job_path))

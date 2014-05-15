@@ -399,8 +399,10 @@ def TestRunResult(run_spec, job_spec, job_spec_path, run_item, input_data, run_r
     
     # If we had a failure
     if not test_result['success']:
-      if test_result.get('log failure', None):
-        log('Result Test Failure: %s' % test_result['log failure'])
+      if test_case.get('log failure', None):
+        log_message = test_case['log failure'] % run_result
+        test_result['log'] = log_message
+        log('Result Test Failure: %s' % log_message)
       
       if test_case['critical']:
         test_result['critical'] = True
@@ -411,8 +413,10 @@ def TestRunResult(run_spec, job_spec, job_spec_path, run_item, input_data, run_r
     
     # Else, we had a success
     else:
-      if test_result.get('log success', None):
-        log('Result Test Failure: %s' % test_result['log failure'])
+      if test_case.get('log success', None):
+        log_message = test_case['log success'] % run_result
+        test_result['log'] = log_message
+        log('Result Test Failure: %s' % log_message)
       
   
   return test_results
