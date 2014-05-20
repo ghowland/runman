@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """
 RunMan - Management of things that need to be run
 
@@ -27,7 +28,8 @@ COMMANDS = {
   'print':'Print out job spec',
   'list':'List all jobs in runman spec',
   'run':'Run a job from the runman spec',
-  'info':'Information about this environment'
+  'info':'Information about this environment',
+  'client':'Run forever processing server requests',
 }
 
 
@@ -97,6 +99,10 @@ def ProcessCommand(run_spec, command, command_options, command_args):
   elif command == 'run':
     utility.run.Run(run_spec, command_options, command_args)
   
+  # Client - Run forever processing server requests
+  elif command == 'client':
+    utility.client.ProcessRequestsForever(run_spec, command_options, command_args)
+  
   # Unknown command
   else:
     output_data['errors'] = ['Unknown command: %s' % command]
@@ -151,8 +157,10 @@ def Usage(error=None):
   print
   print 'Commands:'
   print
-  for (command, info) in COMMANDS.items():
-    print '  %-23s %s' % (command, info)
+  command_keys = list(COMMANDS.keys())
+  command_keys.sort()
+  for command in command_keys:
+    print '  %-23s %s' % (command, COMMANDS[command])
   print
   
   sys.exit(exit_code)

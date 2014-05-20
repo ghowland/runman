@@ -19,7 +19,7 @@ class InputNotCollectable(Exception):
   """Cannot collect all required input from available collection methods and inputs"""
   
 
-def Run(run_spec, command_options, command_args):
+def Run(run_spec, command_options, command_args, input_data=None):
   """Run a job"""
   # Get the job spec name
   if len(command_args) < 1:
@@ -50,7 +50,9 @@ def Run(run_spec, command_options, command_args):
   
   
   # Initiate run procedures
-  input_data = RetrieveInputData(run_spec, job_spec, job_spec_path, command_options, command_args)
+  if not input_data:
+    log('Retrieving input data manually')
+    input_data = RetrieveInputData(run_spec, job_spec, job_spec_path, command_options, command_args)
   
   log('Input Data: %s' % input_data)
   
@@ -87,7 +89,7 @@ def Run(run_spec, command_options, command_args):
   
   # Wrap everything up
   result_data['finished'] = time.time()
-  result_data['duraction'] = result_data['finished'] - result_data['started']
+  result_data['duration'] = result_data['finished'] - result_data['started']
   
   # If every one of our run results was a success, then we are successful
   all_success = True
