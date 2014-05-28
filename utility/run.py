@@ -10,6 +10,7 @@ import re
 import sys
 import time
 import commands
+import subprocess
 
 from log import log
 from error import Error
@@ -17,7 +18,7 @@ from error import Error
 
 class InputNotCollectable(Exception):
   """Cannot collect all required input from available collection methods and inputs"""
-  
+ 
 
 def Run(run_spec, command_options, command_args, input_data=None):
   """Run a job"""
@@ -349,7 +350,8 @@ def RunItem(run_spec, job_spec, job_spec_path, run_item, input_data, command_opt
   
   #TODO(g): Get a distinct data stream for STDOUT and STDERR, also need to poll these so I can report on long running jobs.
   #   This just gets us working.
-  (status, output) = commands.getstatusoutput(command)
+  #(status, output) = commands.getstatusoutput(command)
+  (status, output, output_error) = RunShell(command)
   
   # Finish
   result['finished'] = time.time()
@@ -358,7 +360,7 @@ def RunItem(run_spec, job_spec, job_spec_path, run_item, input_data, command_opt
   
   #TODO(g): Separate STDOUT and STDERR, so we can operate on them differently.  For now, just make them the same to get things going...
   result['stdout'] = output
-  result['stderr'] = output
+  result['stderr'] = output_error
   
   return result
 
@@ -399,6 +401,31 @@ def TestRunResult(run_spec, job_spec, job_spec_path, run_item, input_data, run_r
         test_result['success'] = False
     
     
+    # Not Equals
+    elif test_case['function'] in ['!=', 'not equals']:
+      # If pass
+      if value != test_case['value']:
+        test_result['success'] = True
+      
+      # If fail
+      else:
+        test_result['success'] = False
+    
+    
+    # RegEx
+    elif test_case['function'] in ['regex']:
+      regex_result = re.findall(str(test_case['value']), str(value))
+      # If pass
+      if regex_result:
+        test_result['success'] = True
+      
+      # If fail
+      else:
+        test_result['success'] = False
+    
+    
+    # ---- Test Cases are Finished ----
+    
     # If we had a failure
     if not test_result['success']:
       if test_case.get('log failure', None):
@@ -424,3 +451,25 @@ def TestRunResult(run_spec, job_spec, job_spec_path, run_item, input_data, run_r
   return test_results
   
 
+def RunShell(command):
+  """Run the command on the local machine.  Blocks until complete.
+  
+  Args:
+    command: string, command to execute
+  """
+  output_error = '' #Later, how to handle reading the timing stream between the two?  It's lost...
+
+  # Subprocess is beautiful and finally makes this a pleasant experience!
+  #   Imagine, OUTPUT, ERRORS and EXIT CODE!!!  Not exclusively choosing two!
+  #   Newbs be rejoice in your ignorance.
+  pipe = subprocess.Popen(command, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, shell=True)
+  status = pipe.wait()
+  output = pipe.stdout.read()
+  output_error = pipe.stderr.read()
+  
+  # Close the pipes
+  pipe.stderr.close()
+  pipe.stdout.close()
+
+  return (status, output, output_error)

@@ -7,7 +7,9 @@ different places and some other formatting issues, so their execution and succes
 This can be as detailed as necessary to separate running environments.
 """
 
+
 import sys
+import commands
 
 
 class PlatformNotFound(Exception):
@@ -34,4 +36,10 @@ def GetPlatform():
     raise PlatformNotFound('System Details: %s' % details)
   
   return platform
+
+
+def GetHostname():
+  """Returns a string, the fully qualified domain name (FQDN) of this local host."""
+  (status, output) = commands.getstatusoutput('/bin/hostname')
+  return output.split('.')[0]
 

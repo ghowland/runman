@@ -10,28 +10,45 @@ import base64
 import json
 import hashlib
 import time
+import signal
 
 from log import log
 from error import Error
 
 import run
+import platform
 
 
 # Loop for second before checking again
 LOOP_DELAY = 10.0
 
+# Default to running, SIGKILL changes that
+RUNNING = True
+
+
+def SignalHandler_Quit(signum, frame):
+  """Quit during a safe time after receiving a quit signal."""
+  log('Received signal to quit: %s' % signum)
+  
+  global RUNNING
+  RUNNING = False
+
 
 def ProcessRequestsForever(run_spec, command_options, command_args):
-  log('Running forever in Client Mode...')
+  global RUNNING
+  
+  log('Running forever in Client Mode... (%s) [%s]' % (platform.GetHostname(), platform.GetPlatform()))
 
   # Get the Web Source we load and report our jobs to and from  
   websource = yaml.load(open(run_spec['websource']))
   
+  # Create data to pass to the web request
+  job_get_data = {'hostname':platform.GetHostname()}
+  
   # Run forever, until we quit
-  RUNNING=True
   while RUNNING:
     # Get the jobs the server has for us
-    result = WebGet(websource['job_get'])
+    result = WebGet(websource['job_get'], job_get_data)
     server_result = json.loads(result)
     jobs = json.loads(server_result['jobs'])
     
@@ -91,29 +108,38 @@ def ProcessRequestsForever(run_spec, command_options, command_args):
       log('Report Result: %s' % report_result)
       
     
-    # Sleep - Give back to the system
-    log('Sleeping... (%s seconds)' % LOOP_DELAY)
-    time.sleep(LOOP_DELAY)
+    # Sleep - Give back to the system, if we are going to keep running (otherwise, quit faster)
+    #log('Sleeping... (%s seconds)' % LOOP_DELAY)
+    if RUNNING:
+      time.sleep(LOOP_DELAY)
   
 
 def WebGet(websource, args=None):
   """Wrap dealing with web requests.  The job server uses this to avoid giving out database credentials to all machines."""
-  http_request = urllib2.Request(websource['url'])
-
-  # If Authorization
-  if websource.get('username', None):
-    auth = base64.standard_b64encode('%s:%s' % (websource['username'], websource['password'])).replace('\n', '')
-    http_request.add_header("Authorization", "Basic %s" % auth)
+  #log('WebGet: %s' % websource)
+  try:
+    http_request = urllib2.Request(websource['url'])
+  
+    # If Authorization
+    if websource.get('username', None):
+      auth = base64.standard_b64encode('%s:%s' % (websource['username'], websource['password'])).replace('\n', '')
+      http_request.add_header("Authorization", "Basic %s" % auth)
+    
+    
+    # If args (POST)
+    if args:
+      http_request.add_data(urllib.urlencode(args))
   
   
-  # If args (POST)
-  if args:
-    http_request.add_data(urllib.urlencode(args))
+    result = urllib2.urlopen(http_request)
+    data = result.read()
+    
+    return data
 
-
-  result = urllib2.urlopen(http_request)
-  data = result.read()
-  
-  return data
+  except Exception, e:
+    log('WebGet error: %s' % (e))
+    
+    # No jobs, just keep going, we logged the error (in JSON format)
+    return """{"jobs":[]}"""
 
 
