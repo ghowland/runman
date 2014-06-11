@@ -2,6 +2,8 @@
 """
 RunMan - Management of things that need to be run
 
+Copyright Geoff Howland, 2014.  MIT License.
+
 TODO:
   - ...
   -
@@ -148,12 +150,13 @@ def Usage(error=None):
   print
   print 'Options:'
   print
-  print '  -h, -?, --help          This usage information'
-  print '  -v, --verbose           Verbose output'
-  print '  -s, --strict            Strict mode: fail if input fields not specified for collection are missing'
-  print '  -f, --format <format>   Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
-  print '  -n, --noninteractive    Do not use STDIN to prompt for missing input fields'
-  print '  -i, --input <path>      Path to input file (Format specified by suffic: (.yaml, .json)'
+  print '  -h, -?, --help              This usage information'
+  print '  -v, --verbose               Verbose output'
+  print '  -s, --strict                Strict mode: fail if input fields not specified for collection are missing'
+  print '  -f, --format <format>       Format output, types: %s' % ', '.join(OUTPUT_FORMATS)
+  print '  -n, --noninteractive        Do not use STDIN to prompt for missing input fields'
+  print '  -i, --input <path>          Path to input file (Format specified by suffic: (.yaml, .json)'
+  print '  --override-host <hostname>  Hostname to run jobs as.  Allows '
   print
   print 'Commands:'
   print
@@ -186,6 +189,7 @@ def Main(args=None):
   command_options['noninteractive'] = False
   command_options['input_path'] = None
   command_options['strict'] = False
+  command_options['override_host'] = None
   
   
   # Process out CLI options
@@ -216,6 +220,10 @@ def Main(args=None):
         Usage('Unsupported output format "%s", supported formats: %s' % (value, ', '.join(OUTPUT_FORMATS)))
       
       command_options['format'] = value
+    
+    # Overrride: Host name for running jobs
+    elif option == '--override-host':
+      command_options['override_host'] = value
     
     # Invalid option
     else:

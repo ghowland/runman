@@ -68,6 +68,17 @@ def ProcessRequestsForever(run_spec, command_options, command_args):
       job_json = json.dumps(job, sort_keys=True)
       job_json_md5 = hashlib.md5(job_json).hexdigest()
       
+      
+      
+      
+      #TODO ---->  Switch this to receiving the job data from the server, and not having local data, because we are taking it
+      #   in snippets.  No double verification, but no having to sync all the time either....
+      pass
+    
+    
+    
+    
+      
       # Compare local client and remote server md5 digests of this Job
       #NOTE(g): Using the above JSON dump allows us to test the data, ignoring comments (stripped in YAML load), and any reording
       #   of keys (sort_keys).  This produces a more stable md5 digest than a strict text file eval, and also allows working with
@@ -92,8 +103,23 @@ def ProcessRequestsForever(run_spec, command_options, command_args):
       
       print job_request['job_key']
       
+      
+      
+      
+      
+      
+      
       # Run the job
+      #TODO(g): Run a job item, not the full Job...  Get the input data for the job from WebGet...
+      #
+      #   Should report on ongoing processing, and then finally when finished...
+      #
       run_result = run.Run(run_spec, command_options, [job_request['job_key']], input_data=input_data)
+      
+      
+      
+      
+      
       
       pprint.pprint(run_result)
       
